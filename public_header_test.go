@@ -42,6 +42,18 @@ var _ = Describe("Public Header", func() {
 			Expect(hdr.ConnectionID).ToNot(BeZero())
 		})
 
+		It("reads a diversification nonce sent by the server", func() {
+			divNonce := []byte{0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xa, 0xb, 0xc, 0xd, 0xe, 0xf, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f}
+			Expect(divNonce).To(HaveLen(32))
+			b := bytes.NewReader(append(append([]byte{0x0c, 0xf6, 0x19, 0x86, 0x66, 0x9b, 0x9f, 0xfa, 0x4c}, divNonce...), 0x37))
+			hdr, err := ParsePublicHeader(b, protocol.PerspectiveServer)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(hdr.ConnectionID).To(Not(BeZero()))
+			Expect(hdr.DiversificationNonce).To(Equal(divNonce))
+			Expect(hdr.PacketNumber).To(Equal(protocol.PacketNumber(0x37)))
+			Expect(b.Len()).To(BeZero())
+		})
+
 		PIt("rejects diversification nonces sent by the client", func() {
 			b := bytes.NewReader([]byte{0x0c, 0xf6, 0x19, 0x86, 0x66, 0x9b, 0x9f, 0xfa, 0x4c,
 				0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1,
