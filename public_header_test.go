@@ -260,14 +260,17 @@ var _ = Describe("Public Header", func() {
 		Context("GetLength", func() {
 			It("errors when calling GetLength for Version Negotiation packets", func() {
 				hdr := PublicHeader{VersionFlag: true}
-				_, err := hdr.GetLength()
-				Expect(err).To(MatchError(errGetLengthOnlyForRegularPackets))
+				_, err := hdr.GetLength(protocol.PerspectiveServer)
+				Expect(err).To(MatchError(errGetLengthNotForVersionNegotiation))
 			})
 
-			It("errors when calling GetLength for Public Reset packets", func() {
-				hdr := PublicHeader{ResetFlag: true}
-				_, err := hdr.GetLength()
-				Expect(err).To(MatchError(errGetLengthOnlyForRegularPackets))
+			It("errors when calling GetLength for packets that have the VersionFlag and the ResetFlag set", func() {
+				hdr := PublicHeader{
+					ResetFlag:   true,
+					VersionFlag: true,
+				}
+				_, err := hdr.GetLength(protocol.PerspectiveServer)
+				Expect(err).To(MatchError(errResetAndVersionFlagSet))
 			})
 
 			It("errors when PacketNumberLen is not set", func() {
@@ -275,7 +278,7 @@ var _ = Describe("Public Header", func() {
 					ConnectionID: 0x4cfa9f9b668619f6,
 					PacketNumber: 0xDECAFBAD,
 				}
-				_, err := hdr.GetLength()
+				_, err := hdr.GetLength(protocol.PerspectiveServer)
 				Expect(err).To(MatchError(errPacketNumberLenNotSet))
 			})
 
@@ -285,9 +288,23 @@ var _ = Describe("Public Header", func() {
 					PacketNumber:    0xDECAFBAD,
 					PacketNumberLen: protocol.PacketNumberLen6,
 				}
-				length, err := hdr.GetLength()
+				length, err := hdr.GetLength(protocol.PerspectiveServer)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(length).To(Equal(protocol.ByteCount(1 + 8 + 6))) // 1 byte public flag, 8 bytes connectionID, and packet number
+			})
+
+			It("gets the lengths of a packet sent by the client with the VersionFlag set", func() {
+				hdr := PublicHeader{
+					ConnectionID:         0x4cfa9f9b668619f6,
+					TruncateConnectionID: true,
+					PacketNumber:         0xDECAFBAD,
+					PacketNumberLen:      protocol.PacketNumberLen6,
+					VersionFlag:          true,
+					VersionNumber:        protocol.Version36,
+				}
+				length, err := hdr.GetLength(protocol.PerspectiveClient)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(length).To(Equal(protocol.ByteCount(1 + 4 + 6))) // 1 byte public flag, 4 version number, and packet number
 			})
 
 			It("gets the length of a packet with longest packet number length and truncated connectionID", func() {
@@ -297,7 +314,7 @@ var _ = Describe("Public Header", func() {
 					PacketNumber:         0xDECAFBAD,
 					PacketNumberLen:      protocol.PacketNumberLen6,
 				}
-				length, err := hdr.GetLength()
+				length, err := hdr.GetLength(protocol.PerspectiveServer)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(length).To(Equal(protocol.ByteCount(1 + 6))) // 1 byte public flag, and packet number
 			})
@@ -308,7 +325,7 @@ var _ = Describe("Public Header", func() {
 					PacketNumber:    0xDECAFBAD,
 					PacketNumberLen: protocol.PacketNumberLen2,
 				}
-				length, err := hdr.GetLength()
+				length, err := hdr.GetLength(protocol.PerspectiveServer)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(length).To(Equal(protocol.ByteCount(1 + 8 + 2))) // 1 byte public flag, 8 byte connectionID, and packet number
 			})
@@ -318,9 +335,19 @@ var _ = Describe("Public Header", func() {
 					DiversificationNonce: []byte("foo"),
 					PacketNumberLen:      protocol.PacketNumberLen1,
 				}
-				length, err := hdr.GetLength()
+				length, err := hdr.GetLength(protocol.PerspectiveServer)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(length).To(Equal(protocol.ByteCount(1 + 8 + 3 + 1)))
+				Expect(length).To(Equal(protocol.ByteCount(1 + 8 + 3 + 1))) // 1 byte public flag, 8 byte connectionID, 3 byte DiversificationNonce, 1 byte PacketNumber
+			})
+
+			It("gets the length of a PublicReset", func() {
+				hdr := PublicHeader{
+					ResetFlag:    true,
+					ConnectionID: 0x4cfa9f9b668619f6,
+				}
+				length, err := hdr.GetLength(protocol.PerspectiveServer)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(length).To(Equal(protocol.ByteCount(1 + 8))) // 1 byte public flag, 8 byte connectionID
 			})
 		})
 
