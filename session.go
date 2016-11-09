@@ -311,8 +311,10 @@ func (s *Session) handlePacketImpl(p *receivedPacket) error {
 		utils.Debugf("<- Reading packet 0x%x (%d bytes) for connection %x @ %s", hdr.PacketNumber, len(data)+len(hdr.Raw), hdr.ConnectionID, time.Now().Format("15:04:05.000"))
 	}
 
-	// TODO: Only do this after authenticating
-	s.conn.setCurrentRemoteAddr(p.remoteAddr)
+	if s.perspective == protocol.PerspectiveServer {
+		// TODO: Only do this after authenticating
+		s.conn.setCurrentRemoteAddr(p.remoteAddr)
+	}
 
 	packet, err := s.unpacker.Unpack(hdr.Raw, hdr, data)
 	if err != nil {
