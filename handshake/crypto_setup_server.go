@@ -232,7 +232,7 @@ func (h *cryptoSetupServer) handleCHLO(sni string, data []byte, cryptoData map[T
 	h.mutex.Lock()
 	defer h.mutex.Unlock()
 
-	certUncompressed, err := h.scfg.signer.GetLeafCert(sni)
+	certUncompressed, err := h.scfg.certChain.GetLeafCert(sni)
 	if err != nil {
 		return nil, err
 	}
