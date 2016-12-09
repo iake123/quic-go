@@ -103,8 +103,9 @@ func newSession(conn connection, v protocol.VersionNumber, connectionID protocol
 		perspective:  protocol.PerspectiveServer,
 		version:      v,
 
-		streamCallback: streamCallback,
-		closeCallback:  closeCallback,
+		streamCallback:       streamCallback,
+		closeCallback:        closeCallback,
+		connectionParameters: handshake.NewConnectionParamatersManager(protocol.PerspectiveServer, v),
 	}
 
 	session.setup()
@@ -129,15 +130,16 @@ func newClientSession(conn *net.UDPConn, addr *net.UDPAddr, hostname string, v p
 		perspective:  protocol.PerspectiveClient,
 		version:      v,
 
-		streamCallback: streamCallback,
-		closeCallback:  closeCallback,
+		streamCallback:       streamCallback,
+		closeCallback:        closeCallback,
+		connectionParameters: handshake.NewConnectionParamatersManager(protocol.PerspectiveClient, v),
 	}
 
 	session.setup()
 
 	cryptoStream, _ := session.GetOrOpenStream(1)
 	var err error
-	session.cryptoSetup, err = handshake.NewCryptoSetupClient(hostname, connectionID, v, cryptoStream)
+	session.cryptoSetup, err = handshake.NewCryptoSetupClient(hostname, connectionID, v, cryptoStream, session.connectionParameters)
 	if err != nil {
 		return nil, err
 	}
@@ -151,8 +153,7 @@ func newClientSession(conn *net.UDPConn, addr *net.UDPAddr, hostname string, v p
 // setup is called from newSession and newClientSession and initializes values that are independent of the perspective
 func (s *Session) setup() {
 	s.rttStats = &congestion.RTTStats{}
-	connectionParameters := handshake.NewConnectionParamatersManager(s.version)
-	flowControlManager := flowcontrol.NewFlowControlManager(connectionParameters, s.rttStats)
+	flowControlManager := flowcontrol.NewFlowControlManager(s.connectionParameters, s.rttStats)
 
 	var sentPacketHandler ackhandler.SentPacketHandler
 	var receivedPacketHandler ackhandler.ReceivedPacketHandler
@@ -161,7 +162,6 @@ func (s *Session) setup() {
 
 	now := time.Now()
 
-	s.connectionParameters = connectionParameters
 	s.sentPacketHandler = sentPacketHandler
 	s.receivedPacketHandler = receivedPacketHandler
 	s.flowControlManager = flowControlManager
