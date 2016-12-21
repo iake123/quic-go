@@ -308,7 +308,7 @@ func (h *cryptoSetupServer) handleCHLO(sni string, data []byte, cryptoData map[T
 		return nil, err
 	}
 
-	replyMap, err := h.connectionParameters.GetSHLOMap()
+	replyMap, err := h.connectionParameters.GetHelloMap()
 	if err != nil {
 		return nil, err
 	}
